@@ -9,12 +9,12 @@ Antes de iniciar o pré-processamento dos dados, é importante entender **quais 
 | **Pregnancies**             | ✅ Sim              | Algumas pacientes podem nunca ter engravidado                                 |
 | **Glucose**                 | ❌ Não              | Valor 0 indica dado faltante (ninguém vivo tem glicose 0)                     |
 | **BloodPressure**           | ❌ Não              | Pressão 0 não é compatível com vida                                           |
-| **SkinThickness**           | ⚠️ Duvidoso         | Pode ter valor 0 real, mas geralmente indica valor ausente                   |
-| **Insulin**                 | ⚠️ Duvidoso         | 0 pode ser real, mas geralmente representa ausência de medição               |
+| **SkinThickness**           | ❌ Não        | Pode ter valor 0 real, mas geralmente indica valor ausente                   |
+| **Insulin**                 | ❌ Não         | 0 pode ser real, mas geralmente representa ausência de medição               |
 | **BMI**                     | ❌ Não              | IMC 0 não é possível                                                         |
 | **DiabetesPedigreeFunction**| ✅ Sim              | Valor 0 pode significar ausência de histórico familiar                        |
 | **Age**                     | ❌ Não              | O dataset é composto por mulheres com mais de 21 anos                        |
-| **Outcome**                 | ❌ Não              | É a variável alvo, precisa estar presente para modelagem                     |
+| **Outcome**                 | ✅ Sim             | É a variável alvo, precisa estar presente para modelagem                     |
 
 ---
 
@@ -250,4 +250,178 @@ Dessa forma temos esse resultado:
 as variáveis mais relevantes para modelos preditivos de diabetes são `Glucose`, `BMI`, `Age` e `Pregnancies`.
 
 # Questão 5
+
+Ao analisar entre IMC de quem possui diabetes e quem não possui, demonstra uma certa tendência. Para fazer essa análise, foi utilizado o seguinte algoritmo:
+
+``` python
+
+'''
+5. Existe uma relação entre o IMC dos pacientes e o diagnóstico de diabetes?
+Compare os valores médios de IMC entre os grupos com e sem diabetes, e
+analise a diferença estatisticamente.
+
+'''
+
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Ver médias de IMC entre os grupos com e sem diabetes
+imc_diabetes = df.groupby('Outcome')['BMI'].mean()
+print("Média de IMC por Diabetes:")
+print(imc_diabetes)
+print("\nDiferença de IMC entre os grupos:")
+print(imc_diabetes[1] - imc_diabetes[0])
+
+## Boxplot
+sns.boxplot(x='Outcome', y='BMI', data=df, palette='Set2')
+plt.title('Boxplot de IMC por Diabetes')
+plt.xlabel('Diabetes (0 = Não, 1 = Sim)')
+plt.ylabel('IMC')
+plt.grid(True)
+plt.show()
+```
+
+Obtendo Assim os seguintes resultados:
+
+![quest5-1](./img/quest5-1.png)
+
+![quest5-2](./img/quest5-2.png)
+
+existe uma **relação positiva** entre o IMC e o diagnóstico de diabetes. Isso faz sentido clínico, pois o sobrepeso é um conhecido fator de risco para o desenvolvimento da doença.
+
+# Questão 6
+
+Para responder essa pergunta, primeiramente precisamos ver qual a relação da glicose entre os grupos que possuem diabetes e os que não possuem, para isso utilizaremos o mesmo algoritmos de boxplot utilizado nas demais questões
+
+``` python
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import accuracy_score
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Boxplot de glicose por grupo
+sns.boxplot(x='Outcome', y='Glucose', data=df, palette='Set2')
+plt.title('Boxplot de Glicose por Diabetes')
+plt.xlabel('Diabetes (0 = Não, 1 = Sim)')
+plt.ylabel('Glucose')
+plt.grid(True)
+plt.show()
+```
+
+Com isso temos esse resultado:
+
+![quest6-1](./img/quest6-1.png)
+
+Segundo o gráfico boxplot pessoas que possuem diabetes, tendem a ter o nível de glicose mais alto, para melhor análisa, utilizei um gráfico de densidade
+
+``` python
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import accuracy_score
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Boxplot de glicose por grupo
+sns.boxplot(x='Outcome', y='Glucose', data=df, palette='Set2')
+plt.title('Boxplot de Glicose por Diabetes')
+plt.xlabel('Diabetes (0 = Não, 1 = Sim)')
+plt.ylabel('Glucose')
+plt.grid(True)
+plt.show()
+
+## Criando gráfico de densidade
+sns.kdeplot(df[df['Outcome'] == 0]['Glucose'], label='Sem Diabetes', color='blue')
+sns.kdeplot(df[df['Outcome'] == 1]['Glucose'], label='Com Diabetes', color='red')
+plt.title('Distribuição de Glicose por Diabetes')
+plt.xlabel('Glicose')
+plt.ylabel('Densidade')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+## Médias de glicose por grupo
+print("Média de Glicose por Diabetes:")
+print(df.groupby('Outcome')['Glucose'].mean())
+print("\nDiferença de Glicose entre os grupos:")
+print(df.groupby('Outcome')['Glucose'].mean()[1] - df.groupby('Outcome')['Glucose'].mean()[0])
+```
+
+Como resultado temos:
+
+![quest6-2](./img/quest6-2.png)
+
+![quest6-3](./img/quest6-3.png)
+
+Testando diferentes limiares de glicose como classificadores simples, e observamos que o ponto de corte ideal fica em torno de **125–130 mg/dL**, com acurácia razoável (>70%)
+
+``` python
+
+'''
+6. Existe um valor específico de glicose que pode ser considerado crítico para o
+diagnóstico de diabetes? Utilize gráficos de dispersão e cálculos estatísticos para
+investigar esse ponto e definir um limite crítico, se possível.
+
+'''
+
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import accuracy_score
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Boxplot de glicose por grupo
+sns.boxplot(x='Outcome', y='Glucose', data=df, palette='Set2')
+plt.title('Boxplot de Glicose por Diabetes')
+plt.xlabel('Diabetes (0 = Não, 1 = Sim)')
+plt.ylabel('Glucose')
+plt.grid(True)
+plt.show()
+
+## Criando gráfico de densidade
+sns.kdeplot(df[df['Outcome'] == 0]['Glucose'], label='Sem Diabetes', color='blue')
+sns.kdeplot(df[df['Outcome'] == 1]['Glucose'], label='Com Diabetes', color='red')
+plt.title('Distribuição de Glicose por Diabetes')
+plt.xlabel('Glicose')
+plt.ylabel('Densidade')
+plt.legend()
+plt.grid(True)
+plt.show()
+
+## Médias de glicose por grupo
+print("Média de Glicose por Diabetes:")
+print(df.groupby('Outcome')['Glucose'].mean())
+print("\nDiferença de Glicose entre os grupos:")
+print(df.groupby('Outcome')['Glucose'].mean()[1] - df.groupby('Outcome')['Glucose'].mean()[0])
+
+## Criar um limiar crítico
+for limite in range(100 ,170,5):
+    y_pred_limite = df['Glucose'].apply(lambda x: 1 if x >= limite else 0)
+    acc = accuracy_score(df['Outcome'], y_pred_limite)
+    print(f"Limiar: {limite}, Acurácia: {acc:.5f}")
+```
+
+![quest6-4](./img/quest6-4.png)
+
+Como conclusão temos:
+
+- **A média de glicose entre os pacientes com diabetes foi significativamente maior do que entre os sem diabetes.**
+- valores de glicose acima de **125 mg/dL** podem ser considerados **críticos para o diagnóstico de diabetes**, servindo como um bom indicador de risco.
+
+# Questão 7
+
 
