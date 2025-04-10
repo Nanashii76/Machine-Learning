@@ -424,4 +424,357 @@ Como conclusão temos:
 
 # Questão 7
 
+Para treinar um modelo de árvore de decisão, foi utilizado um modelo da biblioteca do sklearn, para isso, os algoritmo foi disposto da seguinte forma:
 
+``` python
+'''
+7. Treine um modelo de árvore de decisão para prever a presença de diabetes com
+base nas variáveis do dataset. Qual foi a acurácia obtida? Discuta os resultados e
+possíveis melhorias para o modelo.
+'''
+
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.tree import plot_tree
+from sklearn.tree import DecisionTreeClassifier
+
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Separando as variáveis independentes (X) e dependentes (y)
+X = df.drop('Outcome', axis=1)
+y = df['Outcome']
+
+## Dividir o dataset em conjunto de treino e teste (80/20)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+## Criar e treinar o modelo
+model = DecisionTreeClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+## Previsões
+y_pred = model.predict(X_test)
+
+## Avaliar o modelo
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Acurácia do modelo: {accuracy:.2f}")
+
+print("\nMatriz de Confusão:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nRelatório de Classificação:")
+print(classification_report(y_test, y_pred))
+
+
+## Visualizar a árvore de decisão
+plt.figure(figsize=(20,10))
+plot_tree(model, filled=True, feature_names=X.columns, class_names=['Não Diabetes', 'Diabetes'])
+plt.title('Árvore de Decisão para Previsão de Diabetes')
+plt.show()
+```
+
+Obtendo então os seguintes resultados:
+
+![quest7-1](./img/quest7-1.png)
+
+![quest7-2](./img/quest7-2.png)
+
+**Resultados (segundo matriz de  confusão):**
+
+- **Acurácia**: 78%
+- **Matriz de Confusão**:
+    - Verdadeiros negativos: 82
+    - Falsos positivos: 17
+    - Falsos negativos: 17
+    - Verdadeiros positivos: 38
+
+**Relatório de Classificação:**
+
+- **Classe 0 (sem diabetes)**: precision = 0.83, recall = 0.83, f1 = 0.83
+- **Classe 1 (com diabetes)**: precision = 0.69, recall = 0.69, f1 = 0.69
+
+Como conclusão, podemos dizer que o modelo apresenta uma boa precisão.
+
+# Questão 8
+
+Para responder essa pergunta, criaremos então um boxplot comparando o grupo com uma probabilidade de predisposição à diabetes, depois vamos comparar as médias com o grupo que possui e com o grupo que não possui. Durante a solução foi identificado que os dados não estavam normalizados, então o algoritmo a seguir normaliza e retorna a diferença entre os grupos:
+
+``` python
+
+'''
+8. A variável DiabetesPedigreeFunction está relacionada à presença de diabetes?
+Pacientes com histórico familiar de diabetes apresentam maior risco? Realize
+uma análise exploratória e estatística para verificar essa relação.
+'''
+
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+
+# print(df['DiabetesPedigreeFunction'].dtype)
+# print(df['DiabetesPedigreeFunction'].head())
+
+## normalizar os valores de DiabetesPedigreeFunction
+df['DiabetesPedigreeFunction'] = df['DiabetesPedigreeFunction'] / 1000
+df['DiabetesPedigreeFunction'].describe()
+
+## Boxplot de DiabetesPedigreeFunction por grupo
+sns.boxplot(x='Outcome', y='DiabetesPedigreeFunction', data=df, palette='Set2')
+plt.title('Boxplot de DiabetesPedigreeFunction por Diabetes')
+plt.xlabel('Diabetes (0 = Não, 1 = Sim)')
+plt.ylabel('DiabetesPedigreeFunction')
+plt.grid(True)
+plt.show()
+
+## Comparando as médias de DiabetesPedigreeFunction entre os grupos
+print("Média de DiabetesPedigreeFunction por Diabetes:")
+print(df.groupby('Outcome')['DiabetesPedigreeFunction'].mean())
+print("\nDiferença de DiabetesPedigreeFunction entre os grupos:")
+print(df.groupby('Outcome')['DiabetesPedigreeFunction'].mean()[1] - df.groupby('Outcome')['DiabetesPedigreeFunction'].mean()[0])
+```
+
+Como resultado obtemos:
+
+![quest8-1](./img/quest8-1.png)
+
+![quest8-2](./img/quest8-2.png)
+
+Com base nos dados, podemos obervar que: 
+- Pacientes **sem diabetes (Outcome = 0)** têm média de **0.384**
+- Pacientes **com diabetes (Outcome = 1)** têm média de **0.510**
+- A diferença média entre os grupos é de aproximadamente **0.126**
+
+Existe uma diferença positiva em quem possui um histórico familiar de diabetes, o que reforça na probabilidade da doença.
+
+# Questão 9
+
+Realização o agrupamento por idades e comparando as taxas de diabates, partimos da premissa de que grupos mais velhos possuem uma tendência maior a diabete, para analisarmos isso será criado um gráfico de barras e comparar a taxa entre os dois grupos etários
+
+``` python
+
+'''
+9. Pacientes com mais de 50 anos têm taxas de diabetes mais altas do que
+pacientes mais jovens? Utilize estatísticas descritivas e gráficos comparativos
+para demonstrar as diferenças entre esses dois grupos etários.
+'''
+
+import pandas as pd
+import numpy as np 
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## Criar um grupo de pacientes com mais de 50 anos
+df['AgeGroup'] = df['Age'].apply(lambda x: 'Mais de 50' if x > 50 else 'Menos de 50')
+
+## Taxa de diabetes por grupo etário
+df['DiabetesRate'] = df.groupby('AgeGroup')['Outcome'].transform(lambda x: x.mean())
+
+print("Taxa de diabetes por grupo etário:")
+print(df.groupby('AgeGroup')['DiabetesRate'].mean())
+
+## Gráfico de barras comparando as taxas de diabetes entre os grupos etários
+sns.barplot(x='AgeGroup', y='DiabetesRate', data=df, palette='Set2')
+plt.title('Taxa de Diabetes por Grupo Etário')
+plt.xlabel('Grupo Etário')
+plt.ylabel('Taxa de Diabetes')
+plt.grid(True)
+plt.show()
+```
+
+Como resultado temos:
+
+![quest9-1](./img/quest9-1.PNG)
+
+![quest9-2](./img/quest9-2.PNG)
+
+A taxa de diagnóstico de diabetes foi:
+
+- **Mais de 50 anos**: **46.91%**
+- **Menos de 50 anos**: **33.47%**
+
+Pacientes com a idade >= 50 anos possuem uma probabilidade maior de prevalência de diabetes.
+
+# questão 10
+
+Para realizar esse treino de regressão logística, foi utilizado um modelo da biblioteca do sklearn, como o `LogisticRegression` não aceita valores Nan, então para remover as nulidades foi utilizado o método citado na questão 1 de trocar os valores nulos pela mediana da respectiva coluna, não enviesando assim os dados
+
+``` python
+
+'''
+10. Utilize regressão logística para estimar a probabilidade de um paciente ser
+diagnosticado com diabetes. Quais variáveis são mais influentes no modelo e
+como elas impactam a probabilidade de diagnóstico?
+'''
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+
+# Carregar o dataset
+df = pd.read_csv("diabetes.csv")
+
+## dividir o dataset em variáveis independentes (X) e dependentes (y)
+X = df.drop('Outcome', axis=1)
+y = df['Outcome']
+
+## removendo valores nulos [substituindo pela média]
+X = X.fillna(X.median())
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+## Treinando o modelo
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+
+## Avaliar o modelo
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Acurácia do modelo: {accuracy:.2f}")
+
+## Matriz de Confusão
+print("\nMatriz de Confusão:")
+print(confusion_matrix(y_test, y_pred))
+
+## Relatório de Classificação
+print("\nRelatório de Classificação:")
+print(classification_report(y_test, y_pred))
+
+## Interpretação dos coeficientes
+print("\nCoeficientes do modelo:")
+print(model.coef_)
+print("\nIntercepto do modelo:")
+print(model.intercept_)
+```
+
+Dessa forma obtemos o seguinte resultado:
+
+![quest10-1](./img/quest10-1.PNG)
+
+Como conclusão, temos:
+
+**Acurácia obtida**: **75%**
+
+**Matriz de Confusão:**
+- Pacientes sem diabetes (classe 0): 80 acertos, 19 erros
+- Pacientes com diabetes (classe 1): 35 acertos, 20 erros
+
+**Métricas por classe:**
+
+| Classe | Precision | Recall | F1-Score |
+|--------|-----------|--------|----------|
+| 0 (sem diabetes) | 0.80 | 0.81 | 0.80 |
+| 1 (com diabetes) | 0.65 | 0.64 | 0.64 |
+
+**Principais variáveis influentes (positivos):**
+
+- `BMI`: quanto maior o IMC, maior a chance de diabetes
+- `Age`: pacientes mais velhos têm risco maior
+- `Glucose`: mais glicose → maior probabilidade de diabetes
+
+# Questão 11
+
+Uma ideia seria combinar algumas features para analisar a dependência de cada uma em relação a chance de diabetes, uma possível ideia seria combinar a idade do paciente junto com o seu IMC, agrupando de forma que consigamos analisar qual a influência de pacientes com sobrepeso e idade mais avançada afeta no risco de diabetes, temos então que:
+
+- **BMI_Age** = `BMI` × `Age`
+
+```python
+
+'''
+11. Quais técnicas de feature engineering podem ser aplicadas para melhorar a
+previsão do diagnóstico de diabetes utilizando modelos de aprendizado de
+máquina? Experimente transformar variáveis existentes, criar novas variáveis a
+partir de combinações ou interações e utilize técnicas como encoding,
+normalização ou transformação de características. Avalie o impacto dessas
+mudanças no desempenho de um modelo de aprendizado de máquina (por
+exemplo, Random Forest ou XGBoost).
+'''
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+
+# Load the dataset
+df = pd.read_csv("diabetes.csv")
+
+## Criar uma nova variável de IMC (Índice de Massa Corporal) por idade
+df['BMI_Age'] = df['BMI'] * df['Age']
+
+## Separar as variáveis independentes (X) e dependentes (y)
+X = df.drop('Outcome', axis=1)
+y = df['Outcome']
+
+## Verificar se há valores nulos e substitui-los pela média
+X = X.fillna(X.median())
+
+## Treinar modelo com random forest
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+## Previsões
+y_pred = model.predict(X_test)
+
+## Avaliar o modelo
+accuracy = accuracy_score(y_test, y_pred)
+print(f"Acurácia do modelo: {accuracy:.2f}")
+
+## Matriz de Confusão
+print("\nMatriz de Confusão:")
+print(confusion_matrix(y_test, y_pred))
+
+## Relatório de Classificação
+print("\nRelatório de Classificação:")
+print(classification_report(y_test, y_pred))
+
+## Importancia das variáveis em um gráfico
+importances = model.feature_importances_
+indices = np.argsort(importances)[::-1]
+features = X.columns[indices]
+importances = importances[indices]
+plt.figure(figsize=(12, 6))
+plt.title("Importância das Variáveis")
+plt.bar(range(X.shape[1]), importances, align="center")
+plt.xticks(range(X.shape[1]), features, rotation=90)
+plt.xlim([-1, X.shape[1]])
+plt.show()
+```
+
+O modelo com essa nova feature foi treinada com uma Random Forest, de forma que:
+
+![quest11-1](./img/quest11-1.PNG)
+
+![quest11-2](./img/quest11-2.PNG)
+
+
+- **Acurácia**: 74%
+- **Precision (classe 1)**: 63%
+- **Recall (classe 1)**: 65%
+- **F1-score (classe 1)**: 64%
+
+A performance foi semelhante à da regressão logística, mostrando que o modelo se manteve estável mesmo com a adição de novas variáveis, o que indica que os dados são consistentes.
+
+Dessa forma, essa nova feature se mostra com um grande potencial a ser analisado, contribuindo para uma melhor análise dos dados e treinamento de modelos.
