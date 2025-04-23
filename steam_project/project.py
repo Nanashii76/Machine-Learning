@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
 import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler
 
 # Carregar as bases de dados Steam
 steam = pd.read_csv('./data/steam.csv')
