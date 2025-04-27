@@ -17,11 +17,11 @@ def get_player_games(id_steam):
 
   response = requests.get(URL, params=params)
   if response.status_code != 200:
-    return -1  
+    return None  
 
   data = response.json()
   if "response" not in data or "games" not in data["response"]:
-    return -1
+    return None
   
   games = data["response"]["games"]
 
@@ -52,7 +52,7 @@ def app():
       with st.spinner("Conectando à Steam e processando seus jogos..."):
         jogos_do_usuario = get_player_games(id_steam) 
 
-        if jogos_do_usuario == -1:
+        if jogos_do_usuario is None:
           st.error("Erro ao conectar à Steam ou ID Steam inválido. Tente novamente.")
         else:
           if jogos_do_usuario is not None and not jogos_do_usuario.empty:
