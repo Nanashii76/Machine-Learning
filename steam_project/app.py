@@ -1,100 +1,50 @@
-import pandas as pd
-import numpy as np
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics.pairwise import cosine_similarity
 import streamlit as st
+import profile_rec as prf
+import func as fc
 
-# --- CARREGAR E PREPARAR OS DADOS ---
 
-@st.cache_data
-def carregar_dados():
-    steam = pd.read_csv('./data/steam.csv')
-    users = pd.read_csv('./data/steam-200k.csv')
-    users.columns = ['user_id', 'game', 'action', 'value', 'unused']
-
-    # Preprocessamento
-    steam['owners_avg'] = steam['owners'].apply(lambda x: np.mean([int(i.replace(',', '')) for i in x.split('-')]) if pd.notnull(x) else 0)
-    steam['release_date'] = pd.to_datetime(steam['release_date'], errors='coerce')
-    steam['release_year'] = steam['release_date'].dt.year
-    steam['name'] = steam['name'].str.lower()
-    users['game'] = users['game'].str.lower()
-    
-    df_play = users[users['action'] == 'play']
-    merged = pd.merge(df_play, steam, left_on='game', right_on='name', how='inner')
-    merged['genres'] = merged['genres'].str.split(';')
-    merged = merged.explode('genres')
-    merged['value'] = pd.to_numeric(merged['value'], errors='coerce').fillna(0).astype(int)
-    merged = merged[merged['value'] < 10000]
-    
-    dados = merged[['user_id', 'game', 'value', 'positive_ratings', 'negative_ratings',
-                    'average_playtime', 'price', 'release_year', 'owners_avg', 'genres']].copy()
-    
-    dados['genre_list'] = dados['genres']
-    scaler = MinMaxScaler()
-    dados[['positive_ratings_norm', 'negative_ratings_norm',
-           'average_playtime_norm', 'price_norm', 'owners_avg_norm']] = scaler.fit_transform(
-        dados[['positive_ratings', 'negative_ratings', 'average_playtime', 'price', 'owners_avg']]
-    )
-    dados = dados.drop(columns=['positive_ratings', 'negative_ratings',
-                                'average_playtime', 'price', 'owners_avg', 'genres'])
-
-    return dados
-
-dados = carregar_dados()
-
-# --- CONSTRUIR MODELO DE RECOMENDAÇÃO ---
-
-@st.cache_data
-def construir_recomendador(dados):
-    jogos = dados.groupby('game').agg({
-        'positive_ratings_norm': 'mean',
-        'negative_ratings_norm': 'mean',
-        'average_playtime_norm': 'mean',
-        'price_norm': 'mean',
-        'owners_avg_norm': 'mean',
-        'genre_list': lambda x: list(x)[0]
-    }).reset_index()
-
-    generos_dummies = pd.get_dummies(jogos['genre_list'], prefix='genre')
-    jogos_features = pd.concat([jogos[['game', 'positive_ratings_norm', 'negative_ratings_norm',
-                                       'average_playtime_norm', 'price_norm', 'owners_avg_norm']],
-                                generos_dummies], axis=1)
-    
-    features = jogos_features.drop(columns=['game'])
-    similaridade = cosine_similarity(features)
-
-    return jogos_features, similaridade
-
-jogos_features, similaridade = construir_recomendador(dados)
-
-# --- FUNÇÃO DE RECOMENDAÇÃO ---
-
-def recomendar_jogos(nome_jogo, num_recomendacoes=5):
-    nome_jogo = nome_jogo.lower()
-    if nome_jogo not in jogos_features['game'].values:
-        return None
-    idx = jogos_features[jogos_features['game'] == nome_jogo].index[0]
-    similaridades = list(enumerate(similaridade[idx]))
-    similaridades = sorted(similaridades, key=lambda x: x[1], reverse=True)[1:num_recomendacoes+1]
-    indices = [i[0] for i in similaridades]
-    return jogos_features.iloc[indices][['game', 'positive_ratings_norm', 'average_playtime_norm', 'price_norm']]
-
+dados = fc.carregar_dados()
+jogos_features, similaridade = fc.construir_recomendador(dados)
 # --- INTERFACE COM STREAMLIT ---
 
 st.title("🎮 Recomendador de Jogos Steam")
 
-nome_jogo = st.text_input("Digite o nome de um jogo (em minúsculas):")
+abas = st.tabs(["Buscar por nome do jogo", "Recomendações baseadas no seu perfil Steam"])
 
-if st.button("Recomendar"):
-    if nome_jogo:
-        recomendacoes = recomendar_jogos(nome_jogo, num_recomendacoes=5)
-        if recomendacoes is not None:
-            st.success("Jogos recomendados:")
-            st.dataframe(recomendacoes.rename(columns={
-                'game': 'Jogo',
-                'positive_ratings_norm': 'Avaliação',
-                'average_playtime_norm': 'Tempo médio',
-                'price_norm': 'Preço'
-            }))
-        else:
-            st.error("Jogo não encontrado na base. Tente outro nome.")
+with abas[0]:
+    lista_jogos = sorted(jogos_features['game'].unique())
+    termo_busca = st.text_input("Digite o nome de um jogo que você goste: ", "")
+
+    jogos_filtrados = [jogo for jogo in lista_jogos if termo_busca.lower() in jogo.lower()]
+
+    # -- FACILITAR A BUSCA -- 
+    if len(jogos_filtrados) > 100 and termo_busca:
+        st.warning(f"Encontrados {len(jogos_filtrados)} jogos. Mostrando apenas os primeiros 100. Digite mais letras para refinar a busca.")
+        jogos_filtrados = jogos_filtrados[:100]
+
+    if termo_busca and jogos_filtrados:
+        jogo_selecionado = st.selectbox(
+            "Selecione um jogo da lista:",
+            options=jogos_filtrados,
+            index=0
+        )
+        
+        if st.button("Recomendar"):
+            recomendacoes = fc.recomendar_jogos(jogo_selecionado, num_recomendacoes=5)
+            if recomendacoes is not None:
+                st.success(f"Jogos similares a '{jogo_selecionado}':")
+                
+                df_display = recomendacoes.rename(columns={
+                    'game': 'Jogo',
+                    'positive_ratings_norm': 'Avaliação',
+                    'average_playtime_norm': 'Tempo médio',
+                    'price_norm': 'Preço'
+                })
+                
+                st.dataframe(df_display)
+            else:
+                st.error("Erro ao gerar recomendações. Tente outro jogo.")
+    elif termo_busca:
+        st.warning("Nenhum jogo encontrado com esse termo. Tente outra palavra.")
+with abas[1]:
+    prf.app()
