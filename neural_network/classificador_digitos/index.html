@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reconhecedor de Dígitos</title>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
+
+  body {
+    background: linear-gradient(135deg, #fdf6e3, #ffecd2);
+    font-family: 'Comic Neue', cursive, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    color: #5a2a27;
+    user-select: none;
+  }
+
+  h2 {
+    font-size: 2.2rem;
+    text-shadow: 2px 2px 0 #f9d5d3;
+    margin-bottom: 20px;
+  }
+
+  canvas {
+    border: 6px solid #ff6f61;
+    border-radius: 16px;
+    background: black;
+    box-shadow: 0 8px 15px rgba(255, 111, 97, 0.4);
+    cursor: crosshair;
+    transition: transform 0.2s ease;
+  }
+  canvas:hover {
+    transform: scale(1.05);
+  }
+
+  button {
+    background: #ff6f61;
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-weight: 700;
+    font-size: 1.1rem;
+    padding: 12px 28px;
+    margin: 15px 10px 0 10px;
+    box-shadow: 0 4px 8px rgba(255, 111, 97, 0.5);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #ff3b2f;
+  }
+  button:active {
+    transform: scale(0.95);
+  }
+
+  #result {
+    margin-top: 25px;
+    font-size: 1.8rem;
+    color: #3e1f1a;
+    text-shadow: 1px 1px 0 #fff1eb;
+  }
+</style>
+
+</head>
+<body>
+  <h2>Desenhe um número de 0 a 9:</h2>
+  <canvas id="canvas" width="280" height="280" style="background: black;"></canvas><br/>
+  <button onclick="clearCanvas()">Limpar</button>
+  <button onclick="predict()">Prever</button>
+  <p id="result"></p>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    ctx.lineWidth = 20;
+    ctx.lineCap = "round";
+
+    let drawing = false;
+
+    canvas.addEventListener("mousedown", () => drawing = true);
+    canvas.addEventListener("mouseup", () => drawing = false);
+    canvas.addEventListener("mousemove", draw);
+
+    function draw(e) {
+      if (!drawing) return;
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+      ctx.strokeStyle = "white";
+      ctx.beginPath();
+      ctx.moveTo(e.offsetX, e.offsetY);
+    }
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+      document.getElementById("result").innerText = "";
+    }
+
+    function predict() {
+      const dataUrl = canvas.toDataURL("image/png");
+      fetch("http://localhost:5000/predict", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: dataUrl })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("result").innerText = `Número previsto: ${data.digit}`;
+      });
+    }
+  </script>
+</body>
+</html>
